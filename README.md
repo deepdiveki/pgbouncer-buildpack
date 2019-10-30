@@ -1,18 +1,18 @@
-# Heroku buildpack: pgbouncer
+# Buildpack: pgbouncer
 
-This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) that
-allows one to run pgbouncer in a dyno alongside application code.  It is meant
+This is a [buildpack](https://doc.scalingo.com/platform/deployment/buildpacks/intro) that
+allows one to run pgbouncer in a container alongside application code.  It is meant
 to be [used in conjunction with other
-buildpacks](https://devcenter.heroku.com/articles/using-multiple-buildpacks-for-an-app).
+buildpacks](https://doc.scalingo.com/platform/deployment/buildpacks/multi#top-of-page).
 
 The primary use of this buildpack is to allow for transaction pooling of
-PostgreSQL database connections among multiple workers in a dyno. For example,
+PostgreSQL database connections among multiple workers in a container. For example,
 10 unicorn workers would be able to share a single database connection, avoiding
 connection limits and Out Of Memory errors on the Postgres server.
 
 ## FAQ
 - Q: Why should I use transaction pooling?
-- A: You have many workers per dyno that hold open idle Postgres connections and you want to reduce the number of unused connections. [This is a slightly more complete answer from stackoverflow](http://stackoverflow.com/questions/12189162/what-are-advantages-of-using-transaction-pooling-with-pgbouncer)
+- A: You have many workers per container that hold open idle Postgres connections and you want to reduce the number of unused connections. [This is a slightly more complete answer from stackoverflow](http://stackoverflow.com/questions/12189162/what-are-advantages-of-using-transaction-pooling-with-pgbouncer)
 
 - Q: Why shouldn't I use transaction pooling?
 - A: If you need to use named prepared statements, advisory locks, listen/notify, or other features that operate on a session level.
@@ -57,26 +57,24 @@ Example usage:
     $ ls -a
     Gemfile  Gemfile.lock  Procfile  config/  config.ru
 
-    $ heroku buildpacks:add heroku/pgbouncer
-    Buildpack added. Next release on pgbouncer-test-app will use heroku/pgbouncer.
-    Run `git push heroku master` to create a new release using this buildpack.
-
-    $ heroku buildpacks:add heroku/ruby
-    Buildpack added. Next release on pgbouncer-test-app will use:
-      1. https://github.com/heroku/heroku-buildpack-pgbouncer
-      2. https://github.com/heroku/heroku-buildpack-ruby
-    Run `git push heroku master` to create a new release using these buildpacks.
+    $ scalingo env-set BUILDPACK_URL=https://github.com/Scalingo/multi-buildpack
+    $ # edit .buildpacks
+    https://github.com/Scalingo/pgbouncer-buildpack
+    https://github.com/Scalingo/ruby-buildpack
 
     $ cat Procfile
     web:    bin/start-pgbouncer bundle exec unicorn -p $PORT -c ./config/unicorn.rb -E $RACK_ENV
     worker: bundle exec rake worker
 
-    $ git push heroku master
+    $ git add .buildpacks Procfile
+    $ git commit -m "Add pgbouncer buildpack"
+
+    $ git push scalingo master
     ...
     -----> Multipack app detected
     -----> Fetching custom git buildpack... done
     -----> pgbouncer app detected
-           Using pgbouncer version: 1.7-heroku
+           Using pgbouncer version: 1.7
     -----> Fetching and vendoring pgbouncer into slug
     -----> Moving the configuration generation script into app/bin
     -----> Moving the start-pgbouncer script into app/bin
@@ -95,16 +93,16 @@ that process.
 It is possible to connect to multiple databases through pgbouncer by setting
 `PGBOUNCER_URLS` to a list of config vars. Example:
 
-    $ heroku config:add PGBOUNCER_URLS="DATABASE_URL HEROKU_POSTGRESQL_ROSE_URL"
-    $ heroku run bash
+    $ scalingo config-set PGBOUNCER_URLS="DATABASE_URL OTHER_APP_DATABASE_URL"
+    $ scalingo run bash
 
-    ~ $ env | grep 'HEROKU_POSTGRESQL_ROSE_URL\|DATABASE_URL'
-    HEROKU_POSTGRESQL_ROSE_URL=postgres://u9dih9htu2t3ll:password@ec2-107-20-228-134.compute-1.amazonaws.com:5482/db6h3bkfuk5430
-    DATABASE_URL=postgres://uf2782hv7b3uqe:password@ec2-50-19-210-113.compute-1.amazonaws.com:5622/deamhhcj6q0d31
+    ~ $ env | grep 'OTHER_APP_DATABASE_URL\|DATABASE_URL'
+    OTHER_APP_DATABASE_URL=postgres://u9dih9htu2t3ll:password@app1.postgresql.dbs.scalingo.com/dbname1
+    DATABASE_URL=postgres://uf2782hv7b3uqe:password@app2.postgresql.dbs.scalingo.com/dbname2
 
     ~ $ bin/start-pgbouncer env # filtered for brevity
-    HEROKU_POSTGRESQL_ROSE_URL=postgres://u9dih9htu2t3ll:password@127.0.0.1:6000/db2
-    DATABASE_URL=postgres://uf2782hv7b3uqe:password@127.0.0.1:6000/db1
+    OTHER_APP_DATABASE_URL=postgres://u9dih9htu2t3ll:password@127.0.0.1:6000/db1
+    DATABASE_URL=postgres://uf2782hv7b3uqe:password@127.0.0.1:6000/db2
 
 ## Follower Replica Databases
 As of v0.3.2 of this buildpack, it is possible to use pgbouncer to connect to
@@ -141,12 +139,6 @@ Some settings are configurable through app config vars at runtime. Refer to the 
 - `PGBOUNCER_QUERY_WAIT_TIMEOUT` Default is 120 seconds, helps when the server is down or the database rejects connections for any reason. If this is disabled, clients will be queued infinitely.
 
 For more info, see [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Using the edge version of the buildpack
-
-The `heroku/pgbouncer` buildpack points to the latest stable version of the buildpack published in the [Buildpack Registry](https://devcenter.heroku.com/articles/buildpack-registry). To use the latest version of the buildpack (the code in this repository, run the following command:
-
-    $ heroku buildpacks:add https://github.com/heroku/heroku-buildpack-pgbouncer
 
 ## Notes
 Currently, the connection string parsing requires the connection string to be in a specific format:
