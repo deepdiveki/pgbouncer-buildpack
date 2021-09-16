@@ -1,4 +1,6 @@
-# Buildpack: pgbouncer
+# [DEPRECATED] Buildpack: pgbouncer
+
+The pgBouncer buildpack is deprecated. This is no longer officially supported, but feel free to fork it to make it work on the most recent stacks.
 
 This is a [buildpack](https://doc.scalingo.com/platform/deployment/buildpacks/intro) that
 allows one to run pgbouncer in a container alongside application code.  It is meant
