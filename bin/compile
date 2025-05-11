@@ -9,6 +9,7 @@ unset GIT_DIR
 PGBOUNCER_VERSION="1.18.0"  # or latest stable
 
 BUILD_DIR=$1
+LP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 CACHE_DIR=$2
 ENV_DIR=$3
 
