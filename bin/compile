@@ -27,8 +27,9 @@ echo "-----> Building PgBouncer $PGBOUNCER_VERSION from source..." | indent
 mkdir -p $SRC_DIR
 cd $SRC_DIR
 
-curl -sL "https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" | tar xz
-cd "pgbouncer-${PGBOUNCER_VERSION}"
+curl -sL "https://github.com/pgbouncer/pgbouncer/archive/refs/tags/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" -o pgbouncer.tar.gz
+tar -xzf pgbouncer.tar.gz
+cd "pgbouncer-pgbouncer-${PGBOUNCER_VERSION}"
 
 ./configure --prefix="$INSTALL_DIR" --with-openssl || { echo "Configure failed" | indent; exit 1; }
 make -j$(nproc)
