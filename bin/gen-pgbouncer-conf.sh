@@ -15,7 +15,7 @@ cat > /app/vendor/pgbouncer/pgbouncer.ini <<EOF
 [pgbouncer]
 listen_addr = 127.0.0.1
 listen_port = 6000
-auth_type = scram-sha-256
+auth_type = md5
 auth_file = /app/vendor/pgbouncer/users.txt
 pool_mode = ${POOL_MODE}
 server_reset_query = ${SERVER_RESET_QUERY}
