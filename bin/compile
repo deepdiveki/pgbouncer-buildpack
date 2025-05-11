@@ -6,7 +6,7 @@ set -e  # fail fast
 
 unset GIT_DIR
 
-PGBOUNCER_VERSION="1.18.0"  # or latest stable
+PGBOUNCER_VERSION="1.24.1"  # or latest stable
 
 BUILD_DIR=$1
 LP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"

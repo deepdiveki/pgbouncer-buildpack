@@ -1,0 +1,12 @@
+[databases]
+* = host={{DB_HOST}} port={{DB_PORT}} dbname={{DB_NAME}}
+
+[pgbouncer]
+listen_addr = 127.0.0.1
+listen_port = 6000
+auth_type = scram-sha-256
+auth_file = {{BUILD_DIR}}/pgbouncer/userlist.txt
+pool_mode = transaction
+max_client_conn = 100
+default_pool_size = 20
+logfile = {{BUILD_DIR}}/pgbouncer/pgbouncer.log

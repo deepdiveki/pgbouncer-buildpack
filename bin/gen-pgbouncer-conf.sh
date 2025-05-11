@@ -5,26 +5,18 @@ POOL_MODE=${PGBOUNCER_POOL_MODE:-transaction}
 SERVER_RESET_QUERY=${PGBOUNCER_SERVER_RESET_QUERY}
 n=1
 
-# if the SERVER_RESET_QUERY and pool mode is session, pgbouncer recommends DISCARD ALL be the default
-# http://pgbouncer.projects.pgfoundry.org/doc/faq.html#_what_should_my_server_reset_query_be
-if [ -z "${SERVER_RESET_QUERY}" ] &&  [ "$POOL_MODE" == "session" ]; then
+if [ -z "${SERVER_RESET_QUERY}" ] && [ "$POOL_MODE" == "session" ]; then
   SERVER_RESET_QUERY="DISCARD ALL;"
 fi
 
-cat >> /app/vendor/pgbouncer/pgbouncer.ini << EOFEOF
+mkdir -p /app/vendor/pgbouncer
+
+cat > /app/vendor/pgbouncer/pgbouncer.ini <<EOF
 [pgbouncer]
 listen_addr = 127.0.0.1
 listen_port = 6000
-auth_type = md5
+auth_type = scram-sha-256
 auth_file = /app/vendor/pgbouncer/users.txt
-server_tls_sslmode = prefer
-server_tls_protocols = secure
-server_tls_ciphers = HIGH:!ADH:!AECDH:!LOW:!EXP:!MD5:!3DES:!SRP:!PSK:@STRENGTH
-
-; When server connection is released back to pool:
-;   session      - after client disconnects
-;   transaction  - after transaction finishes
-;   statement    - after statement finishes
 pool_mode = ${POOL_MODE}
 server_reset_query = ${SERVER_RESET_QUERY}
 max_client_conn = ${PGBOUNCER_MAX_CLIENT_CONN:-100}
@@ -42,33 +34,30 @@ ignore_startup_parameters = ${PGBOUNCER_IGNORE_STARTUP_PARAMETERS}
 query_wait_timeout = ${PGBOUNCER_QUERY_WAIT_TIMEOUT:-120}
 
 [databases]
-EOFEOF
+EOF
 
-for POSTGRES_URL in $POSTGRES_URLS
-do
+for POSTGRES_URL in $POSTGRES_URLS; do
   eval POSTGRES_URL_VALUE=\$$POSTGRES_URL
   IFS=':' read DB_USER DB_PASS DB_HOST DB_PORT DB_NAME <<< $(echo $POSTGRES_URL_VALUE | perl -lne 'print "$1:$2:$3:$4:$5" if /^postgres(?:ql)?:\/\/([^:]*):([^@]*)@(.*?):(.*?)\/([^?]*?)\?.*$/')
 
-  DB_MD5_PASS="md5"`echo -n ${DB_PASS}${DB_USER} | md5sum | awk '{print $1}'`
+  SCRAM_SECRET=$(printenv "${POSTGRES_URL}_SCRAM_SECRET")
+  if [ -z "$SCRAM_SECRET" ]; then
+    echo "❌ SCRAM_SECRET missing for $POSTGRES_URL — set ${POSTGRES_URL}_SCRAM_SECRET env var"
+    exit 1
+  fi
 
   CLIENT_DB_NAME="db${n}"
 
   echo "Setting ${POSTGRES_URL}_PGBOUNCER config var"
 
-  if [ "$PGBOUNCER_PREPARED_STATEMENTS" == "false" ]
-  then
+  if [ "$PGBOUNCER_PREPARED_STATEMENTS" == "false" ]; then
     export "${POSTGRES_URL}_PGBOUNCER=postgres://$DB_USER:$DB_PASS@127.0.0.1:6000/$CLIENT_DB_NAME?prepared_statements=false&sslmode=disable"
   else
     export "${POSTGRES_URL}_PGBOUNCER=postgres://$DB_USER:$DB_PASS@127.0.0.1:6000/$CLIENT_DB_NAME?sslmode=disable"
   fi
 
-  cat >> /app/vendor/pgbouncer/users.txt << EOFEOF
-"$DB_USER" "$DB_MD5_PASS"
-EOFEOF
-
-  cat >> /app/vendor/pgbouncer/pgbouncer.ini << EOFEOF
-$CLIENT_DB_NAME= host=$DB_HOST dbname=$DB_NAME port=$DB_PORT
-EOFEOF
+  echo "\"$DB_USER\" \"$SCRAM_SECRET\"" >> /app/vendor/pgbouncer/users.txt
+  echo "$CLIENT_DB_NAME= host=$DB_HOST dbname=$DB_NAME port=$DB_PORT" >> /app/vendor/pgbouncer/pgbouncer.ini
 
   let "n += 1"
 done
