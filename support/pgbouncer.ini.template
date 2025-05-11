@@ -4,7 +4,7 @@
 [pgbouncer]
 listen_addr = 127.0.0.1
 listen_port = 6000
-auth_type = scram-sha-256
+auth_type = md5
 auth_file = {{BUILD_DIR}}/pgbouncer/userlist.txt
 pool_mode = transaction
 max_client_conn = 100
