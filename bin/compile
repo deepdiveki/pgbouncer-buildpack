@@ -6,7 +6,7 @@ set -e  # fail fast
 
 unset GIT_DIR
 
-PGBOUNCER_VERSION="1.18.1"  # or latest stable
+PGBOUNCER_VERSION="1.18.0"  # or latest stable
 
 BUILD_DIR=$1
 CACHE_DIR=$2
@@ -28,7 +28,7 @@ mkdir -p "$SRC_DIR"
 cd "$SRC_DIR"
 
 echo "-----> Downloading PgBouncer $PGBOUNCER_VERSION source..." | indent
-curl -sL "https://github.com/pgbouncer/pgbouncer/archive/refs/tags/v${PGBOUNCER_VERSION}.tar.gz" -o pgbouncer.tar.gz
+curl -sL "https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" -o pgbouncer.tar.gz
 tar -xzf pgbouncer.tar.gz
 cd "pgbouncer-${PGBOUNCER_VERSION}"
 
