@@ -13,6 +13,7 @@ main() {
 
 run-pgbouncer() {
   declare psmgr=/tmp/pgbouncer-buildpack-wait
+  export PATH="$(pwd)/vendor/pgbouncer/bin:$PATH"
   declare -A pids signals
 
   config-gen

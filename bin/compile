@@ -1,71 +1,54 @@
 #!/usr/bin/env bash
 # bin/compile <build-dir> <cache-dir> <env-dir>
 
-# fail fast
-set -e
+set -e  # fail fast
+# set -x  # debug
 
-# debug
-# set -x
-
-# clean up leaking environment
 unset GIT_DIR
 
-# config
-if [ "$STACK" == "scalingo-14" ]; then
-  PGBOUNCER_VERSION="1.7"
-else
-  PGBOUNCER_VERSION="1.8.1"
-  STUNNEL_VERSION=""
-fi
+PGBOUNCER_VERSION="1.18.1"  # or latest stable
 
-# parse and derive params
 BUILD_DIR=$1
 CACHE_DIR=$2
-LP_DIR=`cd $(dirname $0); cd ..; pwd`
-BUILDPACK_DIR="$(dirname $(dirname $0))"
+ENV_DIR=$3
 
-function error() {
-  echo " !     $*" >&2
-  exit 1
-}
+VENDORED_PGBOUNCER="vendor/pgbouncer"
+INSTALL_DIR="$BUILD_DIR/$VENDORED_PGBOUNCER"
+BIN_DIR="$BUILD_DIR/bin"
+SRC_DIR="$BUILD_DIR/pgbouncer-src"
 
 function indent() {
-  c='s/^/       /'
-  case $(uname) in
-    Darwin) sed -l "$c";;
-    *)      sed -u "$c";;
-  esac
+  sed -u 's/^/       /'
 }
 
-echo "Using pgbouncer version: ${PGBOUNCER_VERSION}" | indent
+echo "-----> Building PgBouncer $PGBOUNCER_VERSION from source..." | indent
 
-# vendor directories
-VENDORED_PGBOUNCER="vendor/pgbouncer"
+# Install dependencies (at runtime, Scalingo must already have libevent and OpenSSL)
+mkdir -p $SRC_DIR
+cd $SRC_DIR
 
-# vendor pgbouncer into the slug
-PATH="$BUILD_DIR/$VENDORED_PGBOUNCER/bin:$PATH"
-echo "-----> Fetching and vendoring pgbouncer into slug"
-mkdir -p "$BUILD_DIR/$VENDORED_PGBOUNCER"
-tar xzf pgbouncer-${PGBOUNCER_VERSION}.tgz -C ${BUILD_DIR}/${VENDORED_PGBOUNCER}
+curl -sL "https://pgbouncer.github.io/downloads/files/${PGBOUNCER_VERSION}/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" | tar xz
+cd "pgbouncer-${PGBOUNCER_VERSION}"
 
-echo "-----> Moving the configuration generation script into app/bin"
-mkdir -p $BUILD_DIR/bin
-cp "$BUILDPACK_DIR/bin/gen-pgbouncer-conf.sh" $BUILD_DIR/bin
-chmod +x $BUILD_DIR/bin/gen-pgbouncer-conf.sh
+./configure --prefix="$INSTALL_DIR" --with-openssl || { echo "Configure failed" | indent; exit 1; }
+make -j$(nproc)
+make install
 
-echo "-----> Moving the start-pgbouncer script into app/bin"
-mkdir -p $BUILD_DIR/bin
-cp "$BUILDPACK_DIR/bin/start-pgbouncer" $BUILD_DIR/bin/
-chmod +x $BUILD_DIR/bin/start-pgbouncer
+echo "-----> PgBouncer built and installed to $INSTALL_DIR" | indent
 
-echo "-----> Moving the (legacy) start-pgbouncer-stunnel script into app/bin"
-mkdir -p $BUILD_DIR/bin
-cp "$BUILDPACK_DIR/bin/start-pgbouncer-stunnel" $BUILD_DIR/bin/
-chmod +x $BUILD_DIR/bin/start-pgbouncer-stunnel
+# Clean up
+cd $BUILD_DIR
+rm -rf $SRC_DIR
 
-echo "-----> Moving the use-pgbouncer script into app/bin"
-mkdir -p $BUILD_DIR/bin
-cp "$BUILDPACK_DIR/bin/use-pgbouncer" $BUILD_DIR/bin/
-chmod +x $BUILD_DIR/bin/use-pgbouncer
+echo "-----> Copying helper scripts..." | indent
 
-echo "-----> pgbouncer done"
+# Copy config and start scripts
+mkdir -p $BIN_DIR
+cp "$LP_DIR/bin/gen-pgbouncer-conf.sh" "$BIN_DIR/"
+cp "$LP_DIR/bin/start-pgbouncer" "$BIN_DIR/"
+cp "$LP_DIR/bin/start-pgbouncer-stunnel" "$BIN_DIR/"
+cp "$LP_DIR/bin/use-pgbouncer" "$BIN_DIR/"
+
+chmod +x $BIN_DIR/*
+
+echo "-----> PgBouncer buildpack complete." | indent
