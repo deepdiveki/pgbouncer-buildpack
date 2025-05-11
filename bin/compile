@@ -23,14 +23,16 @@ function indent() {
 
 echo "-----> Building PgBouncer $PGBOUNCER_VERSION from source..." | indent
 
-# Install dependencies (at runtime, Scalingo must already have libevent and OpenSSL)
-mkdir -p $SRC_DIR
-cd $SRC_DIR
+# Create working directory
+mkdir -p "$SRC_DIR"
+cd "$SRC_DIR"
 
-curl -sL "https://github.com/pgbouncer/pgbouncer/archive/refs/tags/pgbouncer-${PGBOUNCER_VERSION}.tar.gz" -o pgbouncer.tar.gz
+echo "-----> Downloading PgBouncer $PGBOUNCER_VERSION source..." | indent
+curl -sL "https://github.com/pgbouncer/pgbouncer/archive/refs/tags/v${PGBOUNCER_VERSION}.tar.gz" -o pgbouncer.tar.gz
 tar -xzf pgbouncer.tar.gz
-cd "pgbouncer-pgbouncer-${PGBOUNCER_VERSION}"
+cd "pgbouncer-${PGBOUNCER_VERSION}"
 
+# Build and install
 ./configure --prefix="$INSTALL_DIR" --with-openssl || { echo "Configure failed" | indent; exit 1; }
 make -j$(nproc)
 make install
@@ -38,18 +40,16 @@ make install
 echo "-----> PgBouncer built and installed to $INSTALL_DIR" | indent
 
 # Clean up
-cd $BUILD_DIR
-rm -rf $SRC_DIR
+cd "$BUILD_DIR"
+rm -rf "$SRC_DIR"
 
+# Copy helper scripts
 echo "-----> Copying helper scripts..." | indent
-
-# Copy config and start scripts
-mkdir -p $BIN_DIR
+mkdir -p "$BIN_DIR"
 cp "$LP_DIR/bin/gen-pgbouncer-conf.sh" "$BIN_DIR/"
 cp "$LP_DIR/bin/start-pgbouncer" "$BIN_DIR/"
 cp "$LP_DIR/bin/start-pgbouncer-stunnel" "$BIN_DIR/"
 cp "$LP_DIR/bin/use-pgbouncer" "$BIN_DIR/"
-
-chmod +x $BIN_DIR/*
+chmod +x "$BIN_DIR"/*
 
 echo "-----> PgBouncer buildpack complete." | indent
